@@ -1,6 +1,6 @@
 {
-  "short_name": "Inside Joke",
-  "name": "Jokes between you and friends!",
+  "short_name": "RSA QR Code Demo",
+  "name": "Share your RSA key with your phone!",
   "icons": [
     {
       "src": "favicon.ico",
