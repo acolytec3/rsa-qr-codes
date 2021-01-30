@@ -1,40 +1,36 @@
 import {
   Box,
   Button,
-  Center,
+
   HStack,
   Modal,
   ModalBody,
   ModalContent,
   ModalOverlay,
   Skeleton,
-  Spinner,
-  Text,
-  Textarea,
-  useToast,
+  Textarea
 } from "@chakra-ui/react";
 import { HashedBotIdenticon } from "@digitalungdom/bot-identicon";
+import Arweave from 'arweave';
+import { JWKInterface } from "arweave/web/lib/wallet";
+import crypto from "libp2p-crypto";
 import PeerId from "peer-id";
 import React from "react";
-import GlobalContext from "../context/globalContext";
-import crypto from "libp2p-crypto";
-import { RsaPublicKey } from "crypto";
-import QrReader from "react-qr-scanner";
+import QrReader  from "react-qr-scanner";
 
-interface PeerProps {
-  chatOff: () => void;
-}
 
-const PeerProfile: React.FC<PeerProps> = ({ chatOff }) => {
-  const { state, dispatch } = React.useContext(GlobalContext);
-  const [dialing, setDialing] = React.useState(false);
+
+const PeerProfile: React.FC= () => {
   const [remote, setRemote] = React.useState<string>("");
   const [open, setOpen] = React.useState(false);
-  const toast = useToast();
+
+  const [key, setKey] = React.useState<JWKInterface>();
+
 
   const getKey = async () => {
     if (remote) {
-      setDialing(true);
+
+      console.log('key is', remote)
       let peer: PeerId;
       let key: crypto.PrivateKey;
       try {
@@ -42,57 +38,16 @@ const PeerProfile: React.FC<PeerProps> = ({ chatOff }) => {
         console.log(peer)
         key = await crypto.keys.unmarshalPrivateKey(peer.marshalPrivKey());
         console.log(key)
+        //@ts-ignore
+        setKey(key);
+        let arweave = Arweave.init({})
+        //@ts-ignore
+        console.log('address is ', arweave.wallets.jwkToAddress(key._key))
       } catch (err) {
         console.log("Error!", err);
-        toast({
-          title: "Invalid address",
-          description: "Scan your friend's QR code and try again",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-          position: "top",
-        });
-        setRemote("");
-        setDialing(false);
-        return;
-      }
-      let time = Date.now();
-      let connected = false;
-      do {
-        try {
-          console.log("ping ", await state.libp2p?.ping(peer));
-          connected = true;
-        } catch (err) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-          console.log("Error!", err);
-        }
-      } while (Date.now() - time < 5000 && !connected);
-      if (connected) {
-        dispatch({
-          type: "SET_PEER",
-          payload: {
-            remotePeer: peer,
-            //@ts-ignore
-            remotePeerPubKey: key as RsaPublicKey,
-            remotePeerPubKeyString: remote,
-          },
-        });
-        chatOff();
-      } else {
-        toast({
-          title: "Couldn't find friend!",
-          description: "Scan your friend's QR code and try again",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-          position: "top",
-        });
-      }
-      setRemote("");
-      setDialing(false);
-    }
+         }}
   };
-
+  
   return (
     <Box d="flex" alignItems="baseline">
       <Skeleton isLoaded={remote !== ""}>
@@ -103,38 +58,31 @@ const PeerProfile: React.FC<PeerProps> = ({ chatOff }) => {
           height="200px"
           width="200px"
           value={remote}
-          placeholder="Peer's Public Key"
+          placeholder="Key"
           type="password"
           onChange={(evt) => setRemote(evt.target.value)}
         />
         <HStack>
-          <Button onClick={getKey}>Find a friend</Button>
+          <Button onClick={getKey}>Validate key</Button>
           <Button onClick={() => setOpen(true)}>Read QR Code</Button>
         </HStack>
+        <Textarea value={JSON.stringify(key)} /> 
       </Box>
-      <Modal isCentered closeOnEsc={false} isOpen={dialing} onClose={() => {}}>
-        <ModalOverlay>
-          <ModalContent>
-            <ModalBody>
-              <Center h="50px">
-                <Spinner mr="10px" />
-                <Text>Phoning a friend</Text>
-              </Center>
-            </ModalBody>
-          </ModalContent>
-        </ModalOverlay>
-      </Modal>
       <Modal isOpen={open} onClose={() => setOpen(false)}>
         <ModalOverlay>
           <ModalContent>
             <ModalBody>
               <QrReader
-                delay={300}
+                delay={100}
                 onError={(err: any) => console.log(err)}
                 onScan={(res: any) => {
-                  setRemote(res);
-                  if (res) setOpen(false);
+                  if (res) {
+                    setOpen(false);
+                    console.log(res)
+                    setRemote(res)
+                  }
                 }}
+                maxImageSize={10000}
                 style={{ width: "100%" }}
               />
             </ModalBody>
